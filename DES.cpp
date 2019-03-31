@@ -10,8 +10,7 @@ using namespace std;
 
 bitset<32> feistelFunction(bitset<32> halfBlock, bitset<48> subkey)
 {
-	// TODO
-	return {};
+    return sp(e(halfBlock) ^ subkey);
 }
 
 bitset<64> feistel(const bitset<64> &plainText, const array<bitset<48>, 16> &subkeys)

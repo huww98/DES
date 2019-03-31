@@ -1,28 +1,11 @@
 #include "permutation.h"
 
+#include "permutationData.h"
+
 #include <array>
 #include <bitset>
 
 using namespace std;
-
-template<size_t size>
-constexpr auto minusOne(array<uint8_t, size> table) {
-    for (auto& i : table) {
-		i--;
-	}
-    return table;
-}
-
-constexpr auto ipTable = minusOne<64>({
-	58, 50, 42, 34, 26, 18, 10, 2,
-	60, 52, 44, 36, 28, 20, 12, 4,
-	62, 54, 46, 38, 30, 22, 14, 6,
-	64, 56, 48, 40, 32, 24, 16, 8,
-	57, 49, 41, 33, 25, 17, 9,  1,
-	59, 51, 43, 35, 27, 19, 11, 3,
-	61, 53, 45, 37, 29, 21, 13, 5,
-	63, 55, 47, 39, 31, 23, 15, 7,
-});
 
 constexpr auto buildFpTable() {
 	array<uint8_t, 64> table{};
@@ -35,33 +18,16 @@ constexpr auto buildFpTable() {
 
 constexpr auto fpTable = buildFpTable();
 
-constexpr auto eTable = minusOne<48>({
-    32, 1,  2,  3,  4,  5,
-    4,  5,  6,  7,  8,  9,
-    8,  9,  10, 11, 12, 13,
-    12, 13, 14, 15, 16, 17,
-    16, 17, 18, 19, 20, 21,
-    20, 21, 22, 23, 24, 25,
-    24, 25, 26, 27, 28, 29,
-    28, 29, 30, 31, 32, 1,
-});
-
-constexpr auto pTable = minusOne<32>({
-    16, 7,  20, 21, 29, 12, 28, 17,
-    1,  15, 23, 26, 5,  18, 31, 10,
-    2,  8,  24, 14, 32, 27, 3,  9,
-    19, 13, 30, 6,  22, 11, 4,  25,
-});
-
-/** Used to build mapping table only
- */
 template<size_t outSize>
+/** Do permutation acroding to permutationTable.
+ * It runs slow, and should be used to build mapping table only
+ */
 constexpr uint64_t slowPermutation(const array<uint8_t, outSize> &permutationTable, uint64_t in) {
 	uint64_t result = 0;
 	for (size_t i = 0; i < outSize; i++)
 	{
-		result |= (in << permutationTable[i]) & (uint64_t(1) << outSize - 1);
 		result >>= 1;
+		result |= (in << permutationTable[i]) & (uint64_t(1) << outSize - 1);
 	}
 	return result;
 }
@@ -103,3 +69,37 @@ bitset<64> ip(bitset<64> in) { return permutation<64>(ipMapping, in); }
 bitset<64> fp(bitset<64> in) { return permutation<64>(fpMapping, in); }
 
 bitset<48> e(bitset<32> in) { return permutation<48>(eMapping, in); }
+
+constexpr uint32_t slowP(uint32_t in) { return slowPermutation(pTable, in); }
+
+constexpr uint8_t slowS(uint8_t sBoxIndex, uint8_t in) {
+    int rowIdx = in & 0b000001;
+    rowIdx ^= (in >> 4) & 0b000010;
+    int columnIdx = (in >> 1) & 0b001111;
+    return sBoxes[sBoxIndex][rowIdx][columnIdx];
+}
+
+constexpr auto buildSPMapping() {
+    array<array<uint32_t, 64>, 8> mapping{};
+    for (size_t b = 0; b < mapping.size(); b++)
+	{
+		auto& m = mapping[b];
+		for (uint64_t i = 0; i < m.size(); i++)
+		{
+			m[size_t(i)] = slowP(slowS(b, i) << (4 * b));
+		}
+	}
+    return mapping;
+}
+
+constexpr auto spMapping = buildSPMapping();
+
+bitset<32> sp(bitset<48> in) {
+    bitset<32> result;
+	for (size_t i = 0; i < spMapping.size(); i++)
+	{
+		result |= spMapping[i][in.to_ulong() & 0b111111];
+        in >> 6;
+    }
+    return result;
+}
