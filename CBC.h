@@ -11,7 +11,7 @@ class CBC
 {
   public:
     static constexpr auto blockByteCount = blockSize / 8;
-    using BlockDataType = std::array<char, blockByteCount>;
+    using BlockDataType = std::array<uint8_t, blockByteCount>;
     using BlockType = std::bitset<blockSize>;
 
   private:
@@ -30,10 +30,10 @@ class CBC
         BlockDataType outData;
         for (auto it = outData.rbegin(); it != outData.rend(); ++it)
         {
-            *it = (char)(outBlock & BlockType(0xFF)).to_ulong();
+            *it = (uint8_t)(outBlock & BlockType(0xFF)).to_ulong();
             outBlock >>= 8;
         }
-        out.write(outData.data(), blockByteCount);
+        out.write(reinterpret_cast<char*>(outData.data()), blockByteCount);
     }
 
   public:
@@ -43,13 +43,13 @@ class CBC
         BlockDataType data;
         while (true)
         {
-            in.read(data.data(), blockByteCount);
+            in.read(reinterpret_cast<char*>(data.data()), blockByteCount);
             if (!in)
                 break;
             processBlock(data, iv, out);
         }
         auto readBytes = in.gcount();
-        std::vector<char> padded = padding(data.data(), readBytes);
+        std::vector<uint8_t> padded = padding(data.data(), readBytes);
         for(size_t i = 0; i < padded.size(); i+=blockByteCount)
         {
             BlockDataType data;
