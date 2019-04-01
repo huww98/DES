@@ -43,7 +43,9 @@
         "iomanip": "cpp",
         "ctime": "cpp",
         "xlocmon": "cpp",
-        "xloctime": "cpp"
+        "xloctime": "cpp",
+        "vector": "cpp",
+        "fstream": "cpp"
     },
     "cmake.configureOnOpen": false
 }

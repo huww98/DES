@@ -1,4 +1,7 @@
-#include <bitset>
+#pragma once
 
-std::bitset<64> encryptBlock(const std::bitset<64> &plainText, const std::bitset<64> &key);
-std::bitset<64> decryptBlock(const std::bitset<64> &plainText, const std::bitset<64> &key);
+#include "CBC.h"
+#include "DESCipher.h"
+
+using DES_CBC = CBC<DESCipher, 64, 64>;
+using DES = DES_CBC;

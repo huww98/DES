@@ -1,4 +1,4 @@
-﻿#include "DES.h"
+﻿#include "DESCipher.h"
 
 #include "permutation.h"
 
@@ -13,17 +13,18 @@ bitset<32> feistelFunction(bitset<32> halfBlock, bitset<48> subkey)
     return sp(e(halfBlock) ^ subkey);
 }
 
-bitset<64> feistel(const bitset<64> &plainText, const array<bitset<48>, 16> &subkeys)
+template<typename TSubKeyIt>
+bitset<64> feistel(const bitset<64> &plainText, TSubKeyIt subKeyIt)
 {
 	auto result = ip(plainText);
     bitset<32> right = result.to_ullong();
     bitset<32> left = result.to_ullong() >> 32;
-    for (size_t i = 0; i < subkeys.size(); i++)
+    for (size_t i = 0; i < DESCipher::subKeyCount; i++)
     {
         auto nextLeft = right;
-        right = left ^ feistelFunction(right, subkeys[i]);
+        right = left ^ feistelFunction(right, *subKeyIt);
         left = nextLeft;
-        // cout << dec << i << " " << hex << left.to_ullong() << " " << right.to_ullong() << endl;
+        ++subKeyIt;
     }
     return fp(right.to_ullong() << 32 | left.to_ullong());
 }
@@ -35,30 +36,30 @@ bitset<size> rotateLeft(const bitset<size> &data, int count) {
 
 constexpr array<uint8_t, 16> numOfRotation{1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1};
 
-template<typename TOutIt>
-void scheduleKey(const bitset<64> &key, TOutIt outIt)
+auto scheduleKey(const bitset<64> &key)
 {
     auto left = pc1Left(key);
     auto right = pc1Right(key);
-    for(auto num : numOfRotation)
+    DESCipher::SubKeysType subKeys;
+    auto outIt = subKeys.begin();
+    for (auto num : numOfRotation)
     {
         left = rotateLeft(left, num);
         right = rotateLeft(right, num);
         *outIt = pc2(left.to_ullong() << right.size() | right.to_ullong());
         ++outIt;
     }
+    return subKeys;
 }
 
-bitset<64> encryptBlock(const bitset<64> &plainText, const bitset<64> &key)
+DESCipher::DESCipher(const KeyType &key) : subKeys(scheduleKey(key)) {}
+
+auto DESCipher::encryptBlock(const BlockType &block) -> BlockType
 {
-    array<bitset<48>, 16> subkeys;
-    scheduleKey(key, subkeys.begin());
-    return feistel(plainText, subkeys);
+    return feistel(block, this->subKeys.begin());
 }
 
-bitset<64> decryptBlock(const bitset<64> &plainText, const bitset<64> &key)
+auto DESCipher::decryptBlock(const bitset<64> &block) -> BlockType
 {
-    array<bitset<48>, 16> subkeys;
-    scheduleKey(key, subkeys.rbegin());
-    return feistel(plainText, subkeys);
+    return feistel(block, this->subKeys.rbegin());
 }
